@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.fam4k007.videoplayer"
+        applicationId = "com.fam4k007.videoplayer.selfbuild"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 29
