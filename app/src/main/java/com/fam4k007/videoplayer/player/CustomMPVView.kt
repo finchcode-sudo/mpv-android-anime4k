@@ -47,36 +47,18 @@ class CustomMPVView(context: Context, attrs: AttributeSet) : BaseMPVView(context
             setVo("gpu")
             MPVLib.setOptionString("gpu-context", "android")
         }
-        // HW解码降级链: 优先硬解(HW+)→ 硬解复制模式(HW) → 软解(no)，避免auto在某些设备上卡死
-        MPVLib.setOptionString("hwdec", "mediacodec,mediacodec-copy,no")
-        MPVLib.setOptionString("hwdec-codecs", "all")
+        // ========== 引擎核心参数：与 DroidFS 完全一致（DroidfsMpvView.initOptions） ==========
+        // 显示器刷新率，和 mpv-android 官方一样上报给 mpv
+        val refreshRate = androidx.core.content.ContextCompat.getDisplayOrDefault(context).mode.refreshRate
+        MPVLib.setOptionString("display-fps-override", refreshRate.toString())
+        MPVLib.setOptionString("video-sync", "audio")
+        MPVLib.setOptionString("opengl-es", "yes")
+        MPVLib.setOptionString("hwdec", "mediacodec,mediacodec-copy")
+        MPVLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         MPVLib.setOptionString("ao", "audiotrack,opensles")
-        
-        // ========== HDR/杜比视界色彩处理配置 ==========
-        // 目标色彩空间：auto让MPV自动检测屏幕色彩空间（SDR屏幕用bt.709，HDR屏幕用bt.2020）
-        MPVLib.setOptionString("target-colorspace-hint", "yes")
-        MPVLib.setOptionString("target-prim", "auto")
-        MPVLib.setOptionString("target-trc", "auto")
-        
-        // HDR tone-mapping 算法：mobius 是最平衡的算法，适合大多数内容
-        // 可选: hable(电影感), reinhard(柔和), bt.2390(标准), mobius(平衡)
-        MPVLib.setOptionString("tone-mapping", "mobius")
-        
-        // 动态计算 HDR 峰值亮度，提升杜比视界/HDR10 显示效果
-        MPVLib.setOptionString("hdr-compute-peak", "yes")
-        
-        // HDR 峰值亮度检测：基于整个视频场景分析
-        MPVLib.setOptionString("hdr-peak-percentile", "99.995")
-        
-        // tone-mapping 参数调整（mobius 算法的过渡点）
-        MPVLib.setOptionString("tone-mapping-param", "0.3")
-        
-        // 色彩管理：启用 ICC 配置文件自动检测（Android 8.0+ 支持）
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            MPVLib.setOptionString("icc-profile-auto", "yes")
-        }
-        
-        Log.d(TAG, "HDR/Dolby Vision color processing configured")
+        MPVLib.setOptionString("audio-set-media-role", "yes")
+        MPVLib.setOptionString("input-default-bindings", "yes")
+        MPVLib.setOptionString("save-position-on-quit", "no")
         
         // ========== 音量配置 ==========
         // 允许音量超过100%(最高300%)
@@ -148,19 +130,13 @@ class CustomMPVView(context: Context, attrs: AttributeSet) : BaseMPVView(context
         MPVLib.setOptionString("hls-bitrate", "max")  // HLS使用最高码率
         MPVLib.setOptionString("http-allow-redirect", "yes")  // 允许HTTP重定向
         
-        // 缓存限制 - 根据Android版本动态调整，兼顾性能和内存
-        val cacheMegs = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) 128 else 64
+        // 解复用缓存 - 和 DroidFS（mpv-android 官方）一致：前向、后向都是 64MB（Android 8.1 以下 32MB）
+        val cacheMegs = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) 64 else 32
         MPVLib.setOptionString("demuxer-max-bytes", "${cacheMegs * 1024 * 1024}")
-        // 后向缓存（用于回退）可以小一些，节省内存
-        MPVLib.setOptionString("demuxer-max-back-bytes", "${(cacheMegs / 2) * 1024 * 1024}")
-        MPVLib.setOptionString("cache", "yes")
-        MPVLib.setOptionString("cache-secs", "180")  // 缓存180秒（3分钟）
+        MPVLib.setOptionString("demuxer-max-back-bytes", "${cacheMegs * 1024 * 1024}")
 
         // 默认播放速度
         MPVLib.setOptionString("speed", "1.0")
-        
-        // 胶片颗粒用CPU处理，避免GPU渲染开销（省电+流畅）
-        MPVLib.setOptionString("vd-lavc-film-grain", "cpu")
         
         // 精确跳转设置与用户偏好同步
         // Seek时：精确模式用absolute，非精确用absolute+keyframes（已在PlaybackEngine中实现）
