@@ -19,8 +19,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-// 水平滑动 seek 灵敏度：每滑动 1px ≈ 0.05 秒（与老 GestureHandler 保持一致）
-private const val SWIPE_SEEK_SENSITIVITY = 0.05f
+// 水平滑动 seek：从屏幕左边滑到右边 = 150 秒（与 DroidFS / mpv-android 官方一致，和视频长度无关）
+private const val SWIPE_SEEK_FULL_WIDTH_SEC = 150f
 
 /**
  * 手势处理层
@@ -224,10 +224,10 @@ fun GestureHandler(
                                         // 垂直手势不 consume，不影响上层 Slider
                                     }
                                     isHorizontalGesture -> {
-                                        // 滑满一屏 = 跳转视频全长,手感跟视频长度成正比
+                                        // 滑满一屏 = 150 秒，和 DroidFS 一致
                                         val totalDeltaX = pointer.position.x - downPosition.x
                                         val screenWidth = size.width.toFloat()
-                                        val deltaSeconds = ((totalDeltaX / screenWidth) * duration).toInt()
+                                        val deltaSeconds = ((totalDeltaX / screenWidth) * SWIPE_SEEK_FULL_WIDTH_SEC).toInt()
                                         val targetSeconds = (swipeSeekStartVideoPosition + deltaSeconds)
                                             .coerceIn(0, duration)
                                         viewModel.updateSwipeSeek(targetSeconds, deltaSeconds)
