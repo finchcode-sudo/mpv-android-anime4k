@@ -1521,14 +1521,26 @@ class PlayerViewModel(
     fun updateSwipeSeek(targetSeconds: Int, deltaSeconds: Int) {
         val clampedTarget = targetSeconds.coerceIn(0, _duration.value)
         _swipeSeekPreview.value = SwipeSeekPreview(clampedTarget, deltaSeconds)
-        seekTo(clampedTarget)
+        // 和 DroidFS 一致：滑动中用关键帧跳转(absolute+keyframes)，不做逐帧精确解码，4K 也不会卡住；
+        // 目标没变就不重复发命令，避免连续 seek 把解码器反复清空
+        if (clampedTarget != lastSwipeSeekTarget) {
+            lastSwipeSeekTarget = clampedTarget
+            MPVLib.command("no-osd", "seek", clampedTarget.toString(), "absolute+keyframes")
+        }
     }
+
+    private var lastSwipeSeekTarget = -1
 
     /**
      * 结束滑动 Seek（清除预览）
      */
     fun endSwipeSeek() {
         _swipeSeekPreview.value = null
+        // 滑动结束后再通知一次（同步弹幕进度等），滑动过程中不再每次都发
+        if (lastSwipeSeekTarget >= 0) {
+            _seekEvent.tryEmit(lastSwipeSeekTarget)
+            lastSwipeSeekTarget = -1
+        }
     }
 
     
